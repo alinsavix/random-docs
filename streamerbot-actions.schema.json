@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "streamerbot-actions",
+  "title": "Streamer.Bot actions.json",
+  "description": "Schema for Streamer.Bot's data/actions.json (format version 23)",
+  "type": "object",
+  "required": ["version", "t", "blocking", "groups", "collapsedGroups", "queues", "actions"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "File format version",
+      "examples": [23]
+    },
+    "t": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last-saved timestamp"
+    },
+    "blocking": {
+      "type": "boolean",
+      "description": "Default queue blocking mode"
+    },
+    "groups": {
+      "type": "array",
+      "description": "Ordered list of action group names",
+      "items": { "type": "string" }
+    },
+    "collapsedGroups": {
+      "type": "array",
+      "description": "Group names currently collapsed in the UI",
+      "items": { "type": "string" }
+    },
+    "queues": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Queue" }
+    },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Action" }
+    }
+  },
+
+  "$defs": {
+
+    "UUID": {
+      "type": "string",
+      "format": "uuid"
+    },
+
+    "Queue": {
+      "type": "object",
+      "required": ["id", "name", "blocking"],
+      "properties": {
+        "id":       { "$ref": "#/$defs/UUID" },
+        "name":     { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    },
+
+    "Action": {
+      "type": "object",
+      "required": ["id", "name", "group", "queue", "enabled", "alwaysRun", "randomAction", "concurrent", "excludeFromHistory", "excludeFromPending", "triggers", "subActions"],
+      "properties": {
+        "id":                 { "$ref": "#/$defs/UUID" },
+        "name":               { "type": "string" },
+        "group":              { "type": "string", "description": "Must match an entry in root groups[]" },
+        "queue":              { "$ref": "#/$defs/UUID", "description": "References a Queue id" },
+        "enabled":            { "type": "boolean" },
+        "alwaysRun":          { "type": "boolean" },
+        "randomAction":       { "type": "boolean", "description": "If true, pick one subAction at random" },
+        "concurrent":         { "type": "boolean" },
+        "excludeFromHistory": { "type": "boolean" },
+        "excludeFromPending": { "type": "boolean" },
+        "triggers":           { "type": "array", "items": { "$ref": "#/$defs/Trigger" } },
+        "subActions":         { "type": "array", "items": { "$ref": "#/$defs/SubAction" } },
+        "collapsedGroups":    {
+          "type": "array",
+          "description": "IDs of subAction groups currently collapsed in the UI",
+          "items": { "$ref": "#/$defs/UUID" }
+        }
+      }
+    },
+
+    "Trigger": {
+      "type": "object",
+      "required": ["id", "type", "enabled", "exclusions"],
+      "properties": {
+        "id":         { "$ref": "#/$defs/UUID" },
+        "type":       { "type": "integer", "description": "Trigger type enum — see trigger type definitions" },
+        "enabled":    { "type": "boolean" },
+        "exclusions": { "type": "array", "description": "Exclusion rules (observed empty in all cases)" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": 102 } } },
+          "then": { "properties": { "min": {}, "max": {} }, "description": "Twitch: subscription (range)" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 103 } } },
+          "then": { "properties": { "tiers": { "type": "array" } }, "description": "Twitch: sub by tier" }
+        },
+        {
+          "if": { "properties": { "type": { "enum": [104, 105, 106] } } },
+          "then": { "properties": { "tiers": { "type": "array" }, "min": {}, "max": {}, "subType": {} }, "description": "Twitch: sub variants" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 105 } } },
+          "then": { "properties": { "monthsGifted": {} }, "description": "Twitch: gift sub" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 112 } } },
+          "then": { "properties": { "rewardId": { "$ref": "#/$defs/UUID" } }, "description": "Twitch: channel point redeem (specific reward)" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 186 } } },
+          "then": { "properties": { "minutes": { "type": "number" } }, "description": "Timer" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 194 } } },
+          "then": { "properties": { "rewardType": {} }, "description": "Twitch: channel point redeem (by type)" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 401 } } },
+          "then": { "properties": { "commandId": { "$ref": "#/$defs/UUID" } }, "description": "Command" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 702 } } },
+          "then": { "properties": { "variables": { "type": "object", "additionalProperties": { "type": "string" } } }, "description": "Streamer.Bot startup (with seeded variables)" }
+        },
+        {
+          "if": { "properties": { "type": { "enum": [709, 711] } } },
+          "then": { "properties": { "variableName": { "type": "string" }, "persisted": {} }, "description": "Variable watcher" }
+        },
+        {
+          "if": { "properties": { "type": { "enum": [107, 201, 1201, 4006, 4007, 7001, 10001, 24006, 28003] } } },
+          "then": { "properties": { "min": {}, "max": {} } }
+        },
+        {
+          "if": { "properties": { "type": { "const": 14003 } } },
+          "then": { "properties": { "eventName": { "type": "string" }, "obsId": { "$ref": "#/$defs/UUID" } }, "description": "OBS event" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 14009 } } },
+          "then": { "properties": { "vendorName": { "type": "string" }, "eventName": { "type": "string" }, "obsId": { "$ref": "#/$defs/UUID" } }, "description": "OBS vendor event" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 18002 } } },
+          "then": { "properties": { "name": { "type": "string" }, "eventName": { "type": "string" } }, "description": "WebSocket event" }
+        }
+      ],
+      "$comment": "Known type values: 101=Twitch chat, 102-106=sub variants, 107=raid, 108, 111, 112=channel point redeem, 139, 186=timer, 194=channel point type, 201=bits/cheer, 401=command, 479, 702=startup+vars, 706=startup, 709/711=variable watcher, 1201, 4006/4007/4018=YouTube, 7001, 10001, 14003=OBS event, 14009=OBS vendor event, 18002=WebSocket, 24006, 28003"
+    },
+
+    "SubActionBase": {
+      "type": "object",
+      "required": ["id", "type", "enabled", "index", "weight", "parentId"],
+      "properties": {
+        "id":       { "$ref": "#/$defs/UUID" },
+        "type":     { "type": "integer" },
+        "enabled":  { "type": "boolean" },
+        "index":    { "type": "integer", "description": "Display order within parent" },
+        "weight":   { "type": "number", "description": "Relative weight for random selection" },
+        "parentId": { "oneOf": [{ "$ref": "#/$defs/UUID" }, { "type": "null" }], "description": "null = top-level subAction" }
+      }
+    },
+
+    "SubAction": {
+      "allOf": [{ "$ref": "#/$defs/SubActionBase" }],
+      "unevaluatedProperties": true,
+      "if": { "properties": { "type": { "const": 4 } } },
+      "then": {
+        "description": "Run Action",
+        "properties": {
+          "actionId":      { "$ref": "#/$defs/UUID" },
+          "runImmedately": { "type": "boolean" }
+        }
+      },
+      "$comment": "See subAction type reference below for all 28 types",
+      "oneOf": [
+        {
+          "description": "type=4: Run Action",
+          "properties": { "type": { "const": 4 }, "actionId": { "$ref": "#/$defs/UUID" }, "runImmedately": { "type": "boolean" } }
+        },
+        {
+          "description": "type=21: (no-op / unknown)",
+          "properties": { "type": { "const": 21 } }
+        },
+        {
+          "description": "type=30: OBS Set Source Visibility",
+          "properties": { "type": { "const": 30 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "state": { "type": "integer" }, "connectionId": { "$ref": "#/$defs/UUID" } }
+        },
+        {
+          "description": "type=38: OBS Set Browser Source URL",
+          "properties": { "type": { "const": 38 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "url": { "type": "string" }, "connectionId": { "$ref": "#/$defs/UUID" } }
+        },
+        {
+          "description": "type=46: OBS Raw WebSocket Request",
+          "properties": { "type": { "const": 46 }, "name": { "type": "string" }, "prefix": { "type": "string" }, "raw": { "type": "string", "description": "JSON string for the raw OBS request body" }, "resultsToArgs": { "type": "boolean" }, "connectionId": { "$ref": "#/$defs/UUID" } }
+        },
+        {
+          "description": "type=50: Twitch Set Present Viewer",
+          "properties": { "type": { "const": 50 }, "userLogin": { "type": "string" } }
+        },
+        {
+          "description": "type=120: If / Condition",
+          "properties": { "type": { "const": 120 }, "input": { "type": "string" }, "operation": { "type": "integer" }, "value": {}, "autoType": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
+        },
+        {
+          "description": "type=121: Get Variable",
+          "properties": { "type": { "const": 121 }, "source": { "type": "integer" }, "variableName": { "type": "string" }, "persisted": { "type": "boolean" }, "destinationVariable": { "type": "string" }, "defaultValue": {} }
+        },
+        {
+          "description": "type=122: Set Variable",
+          "properties": { "type": { "const": 122 }, "destination": { "type": "integer" }, "variableName": { "type": "string" }, "persisted": { "type": "boolean" }, "source": { "type": "integer" }, "value": {}, "autoType": { "type": "boolean" } }
+        },
+        {
+          "description": "type=123: Set Argument",
+          "properties": { "type": { "const": 123 }, "variableName": { "type": "string" }, "value": {}, "autoType": { "type": "boolean" } }
+        },
+        {
+          "description": "type=124: Break / Stop",
+          "properties": { "type": { "const": 124 } }
+        },
+        {
+          "description": "type=127: Switch on Input",
+          "properties": { "type": { "const": 127 }, "input": { "type": "string" }, "autoType": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
+        },
+        {
+          "description": "type=324: OBS Source Action",
+          "properties": { "type": { "const": 324 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "connectionId": { "$ref": "#/$defs/UUID" } }
+        },
+        {
+          "description": "type=560: Twitch Send Chat Message",
+          "properties": { "type": { "const": 560 }, "text": { "type": "string" }, "useBot": { "type": "boolean" }, "fallback": { "type": "boolean" }, "replyId": { "type": "string" } }
+        },
+        {
+          "description": "type=1002: Sleep / Delay",
+          "properties": { "type": { "const": 1002 }, "value": { "type": "string" }, "maxValue": { "oneOf": [{ "type": "integer" }, { "type": "null" }] }, "random": { "type": "boolean" } }
+        },
+        {
+          "description": "type=1009: Comment / Note",
+          "properties": { "type": { "const": 1009 }, "value": { "type": "string" }, "color": { "type": "string" } }
+        },
+        {
+          "description": "type=1020: Log Message",
+          "properties": { "type": { "const": 1020 }, "logLevel": { "type": "integer" }, "message": { "type": "string" } }
+        },
+        {
+          "description": "type=1024: Toast Notification",
+          "properties": { "type": { "const": 1024 }, "toastId": { "type": "string" }, "title": { "type": "string" }, "text": { "type": "string" }, "attribution": { "type": "string" }, "iconPath": { "type": "string" } }
+        },
+        {
+          "description": "type=1031: Signal Send",
+          "properties": { "type": { "const": 1031 }, "signalName": { "type": "string" }, "useArge": { "type": "boolean" }, "customArgs": { "type": "object" }, "queueSignal": { "type": "boolean" } }
+        },
+        {
+          "description": "type=1032: Signal Wait",
+          "properties": { "type": { "const": 1032 }, "signalName": { "type": "string" }, "overwrite": { "type": "boolean" }, "timeout": { "oneOf": [{ "type": "integer" }, { "type": "null" }] } }
+        },
+        {
+          "description": "type=1034: Trigger Custom Event",
+          "properties": { "type": { "const": 1034 }, "eventName": { "type": "string" }, "useArgs": { "type": "boolean" } }
+        },
+        {
+          "description": "type=99900: Group (named container)",
+          "properties": { "type": { "const": 99900 }, "name": { "type": "string" }, "color": { "oneOf": [{ "type": "string" }, { "type": "null" }] }, "random": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
+        },
+        {
+          "description": "type=99901: If — Then block",
+          "properties": { "type": { "const": 99901 }, "random": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
+        },
+        {
+          "description": "type=99902: If — Else block",
+          "properties": { "type": { "const": 99902 }, "random": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
+        },
+        {
+          "description": "type=99903: Switch — Case block",
+          "properties": { "type": { "const": 99903 }, "caseSensitive": { "type": "boolean" }, "values": { "type": "array", "items": { "type": "string" } }, "random": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
+        },
+        {
+          "description": "type=99904: Switch — Default block",
+          "properties": { "type": { "const": 99904 }, "random": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
+        },
+        {
+          "description": "type=99998: Execute Compiled C#",
+          "properties": { "type": { "const": 99998 }, "executeCodeId": { "$ref": "#/$defs/UUID" }, "method": { "type": "string" }, "runOnUiThread": { "type": "boolean" }, "saveResultToVariable": { "type": "boolean" }, "saveToVariable": { "oneOf": [{ "type": "string" }, { "type": "null" }] } }
+        },
+        {
+          "description": "type=99999: Inline C# Code",
+          "properties": { "type": { "const": 99999 }, "name": { "type": "string" }, "description": { "oneOf": [{ "type": "string" }, { "type": "null" }] }, "references": { "type": "array", "items": { "type": "string" } }, "byteCode": { "type": "string", "contentEncoding": "base64", "description": "Base64-encoded C# source" }, "precompile": { "type": "boolean" }, "delayStart": { "type": "boolean" }, "saveResultToVariable": { "type": "boolean" }, "saveToVariable": { "oneOf": [{ "type": "string" }, { "type": "null" }] } }
+        }
+      ]
+    }
+  }
+}

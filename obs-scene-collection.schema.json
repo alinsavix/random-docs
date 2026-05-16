@@ -1,0 +1,819 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "obs-scene-collection",
+  "title": "OBS Studio Scene Collection",
+  "description": "Schema for OBS Studio scene collection JSON files (basic/scenes/*.json). Partially unverified.",
+  "type": "object",
+  "required": ["name", "current_scene", "current_program_scene", "scene_order", "sources"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Scene collection name"
+    },
+    "current_scene": {
+      "type": "string",
+      "description": "Name of the currently active preview scene"
+    },
+    "current_program_scene": {
+      "type": "string",
+      "description": "Name of the currently active program/output scene"
+    },
+    "current_transition": {
+      "type": "string",
+      "description": "Name of the currently selected transition"
+    },
+    "transition_duration": {
+      "type": "integer",
+      "description": "Default transition duration in milliseconds",
+      "minimum": 0
+    },
+    "preview_locked": {
+      "type": "boolean",
+      "description": "Whether the preview is locked"
+    },
+    "scaling_enabled": {
+      "type": "boolean",
+      "description": "Whether custom canvas scaling is enabled"
+    },
+    "scaling_level": {
+      "type": "integer",
+      "description": "Canvas scaling level"
+    },
+    "scaling_off_x": {
+      "type": "number",
+      "description": "Canvas scaling X offset"
+    },
+    "scaling_off_y": {
+      "type": "number",
+      "description": "Canvas scaling Y offset"
+    },
+    "scene_order": {
+      "type": "array",
+      "description": "Ordered list of scene names as shown in the Scenes panel (includes separator entries)",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Scene or separator name"
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "description": "All sources and scenes in the collection",
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "groups": {
+      "type": "array",
+      "description": "Group sources",
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "transitions": {
+      "type": "array",
+      "description": "Custom transition definitions",
+      "items": { "$ref": "#/$defs/transition" }
+    },
+    "quick_transitions": {
+      "type": "array",
+      "description": "Quick-access transition buttons in the UI",
+      "items": { "$ref": "#/$defs/quick_transition" }
+    },
+    "saved_projectors": {
+      "type": "array",
+      "description": "Saved projector window configurations",
+      "items": {
+        "type": "object"
+      }
+    },
+    "virtual-camera": {
+      "type": "object",
+      "description": "Virtual camera configuration",
+      "properties": {
+        "type2": {
+          "type": "integer",
+          "description": "Virtual camera output type (0=program, 1=preview, 2=scene, 3=source)"
+        }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "description": "Per-module persistent settings",
+      "additionalProperties": true,
+      "properties": {
+        "output-timer": { "$ref": "#/$defs/module_output_timer" },
+        "auto-scene-switcher": { "$ref": "#/$defs/module_auto_scene_switcher" },
+        "captions": { "$ref": "#/$defs/module_captions" },
+        "source-dock": { "$ref": "#/$defs/module_source_dock" },
+        "decklink_captions": {
+          "type": "object",
+          "properties": {
+            "source": { "type": "string" }
+          }
+        },
+        "copyTransformHotkey": { "type": "array" },
+        "pasteTransformHotkey": { "type": "array" },
+        "scripts-tool": { "type": "array" },
+        "downstream_keyers_channel": { "type": "object" },
+        "downstream_keyers": { "type": "array" },
+        "advanced-scene-switcher": { "type": "object" }
+      }
+    }
+  },
+
+  "$defs": {
+    "vec2": {
+      "type": "object",
+      "description": "2D vector",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+
+    "font": {
+      "type": "object",
+      "description": "Font descriptor",
+      "properties": {
+        "face": { "type": "string", "description": "Font family name" },
+        "style": { "type": "string", "description": "Font style (e.g. Regular, Bold)" },
+        "size": { "type": "integer", "minimum": 1 },
+        "flags": {
+          "type": "integer",
+          "description": "Bitmask: 1=Bold, 2=Italic, 4=Underline, 8=Strikeout"
+        }
+      }
+    },
+
+    "source_base": {
+      "description": "Fields common to all OBS sources, scenes, and filters",
+      "type": "object",
+      "required": ["name", "id", "versioned_id", "settings"],
+      "properties": {
+        "prev_ver": {
+          "type": "integer",
+          "description": "OBS version integer that last wrote this source"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the source"
+        },
+        "uuid": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Stable UUID for this source"
+        },
+        "id": {
+          "type": "string",
+          "description": "Source type identifier (e.g. ffmpeg_source, scene, browser_source)"
+        },
+        "versioned_id": {
+          "type": "string",
+          "description": "Source type ID including version suffix (e.g. color_source_v3)"
+        },
+        "settings": {
+          "type": "object",
+          "description": "Source-type-specific settings"
+        },
+        "mixers": {
+          "type": "integer",
+          "description": "Audio mixer channel bitmask (255 = all channels, 0 = none)"
+        },
+        "sync": {
+          "type": "integer",
+          "description": "Audio sync offset in nanoseconds"
+        },
+        "flags": {
+          "type": "integer",
+          "description": "Source flags bitmask"
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Audio volume multiplier (0.0–1.0)"
+        },
+        "balance": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Audio stereo balance (0.5 = center)"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the source is active/enabled"
+        },
+        "muted": {
+          "type": "boolean",
+          "description": "Whether audio is muted"
+        },
+        "push-to-mute": {
+          "type": "boolean"
+        },
+        "push-to-mute-delay": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Push-to-mute delay in milliseconds"
+        },
+        "push-to-talk": {
+          "type": "boolean"
+        },
+        "push-to-talk-delay": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Push-to-talk delay in milliseconds"
+        },
+        "hotkeys": {
+          "type": "object",
+          "description": "Hotkey bindings for this source, keyed by action name",
+          "additionalProperties": {
+            "type": "array",
+            "description": "List of key combos bound to this action",
+            "items": { "type": "object" }
+          }
+        },
+        "deinterlace_mode": {
+          "type": "integer",
+          "description": "Deinterlace mode: 0=disable, 1=discard, 2=blend, 3=blend-2x, 4=linear, 5=linear-2x, 6=yadif, 7=yadif-2x"
+        },
+        "deinterlace_field_order": {
+          "type": "integer",
+          "description": "Deinterlace field order: 0=top first, 1=bottom first"
+        },
+        "monitoring_type": {
+          "type": "integer",
+          "description": "Audio monitoring: 0=none, 1=monitor only, 2=monitor and output"
+        },
+        "private_settings": {
+          "type": "object",
+          "description": "Internal/plugin private settings"
+        },
+        "filters": {
+          "type": "array",
+          "description": "Filters applied to this source, in order",
+          "items": { "$ref": "#/$defs/filter" }
+        }
+      }
+    },
+
+    "source": {
+      "description": "An OBS source or scene",
+      "allOf": [{ "$ref": "#/$defs/source_base" }],
+      "if": { "properties": { "id": { "const": "scene" } } },
+      "then": {
+        "properties": {
+          "settings": { "$ref": "#/$defs/settings_scene" }
+        }
+      },
+      "else": {
+        "if": { "properties": { "id": { "const": "ffmpeg_source" } } },
+        "then": {
+          "properties": { "settings": { "$ref": "#/$defs/settings_ffmpeg_source" } }
+        },
+        "else": {
+          "if": { "properties": { "id": { "const": "image_source" } } },
+          "then": {
+            "properties": { "settings": { "$ref": "#/$defs/settings_image_source" } }
+          },
+          "else": {
+            "if": { "properties": { "id": { "const": "color_source" } } },
+            "then": {
+              "properties": { "settings": { "$ref": "#/$defs/settings_color_source" } }
+            },
+            "else": {
+              "if": { "properties": { "id": { "const": "browser_source" } } },
+              "then": {
+                "properties": { "settings": { "$ref": "#/$defs/settings_browser_source" } }
+              },
+              "else": {
+                "if": { "properties": { "id": { "const": "text_gdiplus" } } },
+                "then": {
+                  "properties": { "settings": { "$ref": "#/$defs/settings_text_gdiplus" } }
+                },
+                "else": {
+                  "if": { "properties": { "id": { "const": "vlc_source" } } },
+                  "then": {
+                    "properties": { "settings": { "$ref": "#/$defs/settings_vlc_source" } }
+                  },
+                  "else": {
+                    "if": { "properties": { "id": { "const": "dshow_input" } } },
+                    "then": {
+                      "properties": { "settings": { "$ref": "#/$defs/settings_dshow_input" } }
+                    },
+                    "else": {
+                      "if": { "properties": { "id": { "const": "wasapi_input_capture" } } },
+                      "then": {
+                        "properties": { "settings": { "$ref": "#/$defs/settings_wasapi_capture" } }
+                      },
+                      "else": {
+                        "if": { "properties": { "id": { "const": "wasapi_output_capture" } } },
+                        "then": {
+                          "properties": { "settings": { "$ref": "#/$defs/settings_wasapi_capture" } }
+                        },
+                        "else": {
+                          "if": { "properties": { "id": { "const": "window_capture" } } },
+                          "then": {
+                            "properties": { "settings": { "$ref": "#/$defs/settings_window_capture" } }
+                          },
+                          "else": {
+                            "if": { "properties": { "id": { "const": "decklink-input" } } },
+                            "then": {
+                              "properties": { "settings": { "$ref": "#/$defs/settings_decklink_input" } }
+                            },
+                            "else": {
+                              "if": { "properties": { "id": { "const": "phandasm_waveform_source" } } },
+                              "then": {
+                                "properties": { "settings": { "$ref": "#/$defs/settings_phandasm_waveform" } }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "filter": {
+      "description": "A filter applied to a source",
+      "allOf": [{ "$ref": "#/$defs/source_base" }],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Filter type identifier",
+          "examples": [
+            "chroma_key_filter",
+            "color_filter",
+            "async_delay_filter",
+            "noise_gate_filter",
+            "move_source_filter",
+            "source_record_filter",
+            "gpu_delay"
+          ]
+        }
+      }
+    },
+
+    "scene_item": {
+      "type": "object",
+      "description": "A source placed within a scene",
+      "required": ["name", "source_uuid", "visible", "locked", "rot", "pos", "scale", "align",
+                   "bounds_type", "bounds_align", "bounds", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the source this item references"
+        },
+        "source_uuid": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUID of the referenced source"
+        },
+        "visible": { "type": "boolean" },
+        "locked": { "type": "boolean" },
+        "rot": {
+          "type": "number",
+          "description": "Rotation in degrees"
+        },
+        "pos": { "$ref": "#/$defs/vec2", "description": "Position in canvas pixels" },
+        "scale": { "$ref": "#/$defs/vec2", "description": "Scale multipliers" },
+        "align": {
+          "type": "integer",
+          "description": "Alignment bitmask for the item anchor point"
+        },
+        "bounds_type": {
+          "type": "integer",
+          "description": "Bounding box type: 0=none, 1=stretch, 2=scale to inner, 3=scale to outer, 4=scale to width, 5=scale to height, 6=max size only"
+        },
+        "bounds_align": {
+          "type": "integer",
+          "description": "Alignment of item within its bounding box"
+        },
+        "bounds_crop": { "type": "boolean" },
+        "bounds": { "$ref": "#/$defs/vec2", "description": "Bounding box size" },
+        "crop_left": { "type": "integer", "minimum": 0 },
+        "crop_top": { "type": "integer", "minimum": 0 },
+        "crop_right": { "type": "integer", "minimum": 0 },
+        "crop_bottom": { "type": "integer", "minimum": 0 },
+        "id": {
+          "type": "integer",
+          "description": "Scene-local item ID (matches libobs.show_scene_item.<id> hotkey)"
+        },
+        "group_item_backup": { "type": "boolean" },
+        "scale_filter": {
+          "type": "string",
+          "enum": ["disable", "point", "bilinear", "bicubic", "lanczos", "area"]
+        },
+        "blend_method": {
+          "type": "string",
+          "enum": ["default", "srgb_off"],
+          "description": "Color blend method"
+        },
+        "blend_type": {
+          "type": "string",
+          "description": "Blend mode (normal, additive, subtract, screen, multiply, lighten, darken)"
+        },
+        "show_transition": {
+          "type": "object",
+          "description": "Transition played when this item becomes visible",
+          "properties": {
+            "duration": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "hide_transition": {
+          "type": "object",
+          "description": "Transition played when this item becomes hidden",
+          "properties": {
+            "duration": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "private_settings": { "type": "object" }
+      }
+    },
+
+    "settings_scene": {
+      "type": "object",
+      "description": "Settings for a scene source",
+      "additionalProperties": false,
+      "properties": {
+        "custom_size": {
+          "type": "boolean",
+          "description": "Whether the scene uses a custom canvas size"
+        },
+        "cx": {
+          "type": "integer",
+          "description": "Custom canvas width (only when custom_size is true)"
+        },
+        "cy": {
+          "type": "integer",
+          "description": "Custom canvas height (only when custom_size is true)"
+        },
+        "id_counter": {
+          "type": "integer",
+          "description": "Counter used to assign unique item IDs within this scene"
+        },
+        "items": {
+          "type": "array",
+          "description": "Scene items, ordered bottom-to-top (index 0 is bottom layer)",
+          "items": { "$ref": "#/$defs/scene_item" }
+        }
+      }
+    },
+
+    "settings_ffmpeg_source": {
+      "type": "object",
+      "description": "Settings for a media (ffmpeg) source",
+      "additionalProperties": true,
+      "properties": {
+        "local_file": { "type": "string", "description": "Path to the local media file" },
+        "is_local_file": { "type": "boolean" },
+        "looping": { "type": "boolean", "description": "Whether playback loops" },
+        "restart_on_activate": { "type": "boolean" },
+        "close_when_inactive": { "type": "boolean" },
+        "clear_on_media_end": { "type": "boolean" },
+        "hw_decode": { "type": "boolean", "description": "Whether hardware decoding is enabled" },
+        "speed_percent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Playback speed as a percentage (100 = normal)"
+        },
+        "input": { "type": "string", "description": "URL or stream input (non-local)" },
+        "input_format": { "type": "string" },
+        "reconnect_delay_sec": { "type": "integer" },
+        "buffering_mb": { "type": "integer" }
+      }
+    },
+
+    "settings_image_source": {
+      "type": "object",
+      "description": "Settings for an image source",
+      "additionalProperties": true,
+      "properties": {
+        "file": { "type": "string", "description": "Path to the image file" },
+        "linear_alpha": { "type": "boolean" },
+        "unload": { "type": "boolean" }
+      }
+    },
+
+    "settings_color_source": {
+      "type": "object",
+      "description": "Settings for a color source",
+      "additionalProperties": true,
+      "properties": {
+        "color": {
+          "type": "integer",
+          "description": "ABGR color packed as a 32-bit integer"
+        },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "settings_browser_source": {
+      "type": "object",
+      "description": "Settings for a browser source",
+      "additionalProperties": true,
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "fps": { "type": "integer", "minimum": 1 },
+        "fps_custom": { "type": "boolean" },
+        "css": { "type": "string" },
+        "shutdown": { "type": "boolean", "description": "Shut down source when not visible" },
+        "restart_when_active": { "type": "boolean" },
+        "reroute_audio": { "type": "boolean" },
+        "webpage_control_level": {
+          "type": "integer",
+          "description": "Level of OBS control allowed to the webpage (0–5)"
+        }
+      }
+    },
+
+    "settings_text_gdiplus": {
+      "type": "object",
+      "description": "Settings for a GDI+ text source",
+      "additionalProperties": true,
+      "properties": {
+        "text": { "type": "string" },
+        "read_from_file": { "type": "boolean" },
+        "file": { "type": "string", "description": "Path to a text file (when read_from_file is true)" },
+        "font": { "$ref": "#/$defs/font" },
+        "align": { "type": "string", "enum": ["left", "center", "right"] },
+        "valign": { "type": "string", "enum": ["top", "center", "bottom"] },
+        "color": { "type": "integer", "description": "ABGR foreground color" },
+        "opacity": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "gradient": { "type": "boolean" },
+        "gradient_color": { "type": "integer" },
+        "gradient_opacity": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "gradient_dir": { "type": "number" },
+        "bk_color": { "type": "integer", "description": "ABGR background color" },
+        "bk_opacity": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "outline": { "type": "boolean" },
+        "outline_size": { "type": "integer", "minimum": 0 },
+        "outline_color": { "type": "integer" },
+        "outline_opacity": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "vertical": { "type": "boolean" },
+        "extents": { "type": "boolean" },
+        "extents_wrap": { "type": "boolean" },
+        "extents_cx": { "type": "integer" },
+        "extents_cy": { "type": "integer" },
+        "chatlog_lines": { "type": "integer" },
+        "transform": { "type": "integer" },
+        "antialiasing": { "type": "boolean" }
+      }
+    },
+
+    "vlc_playlist_item": {
+      "type": "object",
+      "required": ["value"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string", "description": "File path or URL" },
+        "selected": { "type": "boolean" },
+        "hidden": { "type": "boolean" }
+      }
+    },
+
+    "settings_vlc_source": {
+      "type": "object",
+      "description": "Settings for a VLC media source",
+      "additionalProperties": true,
+      "properties": {
+        "playlist": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/vlc_playlist_item" }
+        },
+        "shuffle": { "type": "boolean" },
+        "loop": { "type": "boolean" },
+        "playback_behavior": {
+          "type": "string",
+          "enum": ["stop_restart", "pause_unpause", "always_play"]
+        },
+        "subtitle": { "type": "integer" },
+        "subtitle_enable": { "type": "boolean" },
+        "network_caching": { "type": "integer" }
+      }
+    },
+
+    "settings_dshow_input": {
+      "type": "object",
+      "description": "Settings for a DirectShow (video capture device) source",
+      "additionalProperties": true,
+      "properties": {
+        "video_device_id": { "type": "string" },
+        "last_video_device_id": { "type": "string" },
+        "audio_device_id": { "type": "string" },
+        "last_audio_device_id": { "type": "string" },
+        "active": { "type": "boolean" },
+        "res_type": { "type": "integer" },
+        "resolution": { "type": "string" },
+        "frame_interval": { "type": "integer" },
+        "video_format": { "type": "integer" },
+        "color_space": { "type": "integer" },
+        "color_range": { "type": "integer" },
+        "buffering": { "type": "boolean" },
+        "flip_vertically": { "type": "boolean" }
+      }
+    },
+
+    "settings_wasapi_capture": {
+      "type": "object",
+      "description": "Settings for a WASAPI audio input or output capture source",
+      "additionalProperties": true,
+      "properties": {
+        "device_id": { "type": "string", "description": "Windows audio device ID" },
+        "use_device_timing": { "type": "boolean" }
+      }
+    },
+
+    "settings_window_capture": {
+      "type": "object",
+      "description": "Settings for a window capture source",
+      "additionalProperties": true,
+      "properties": {
+        "window": { "type": "string", "description": "Window specifier string (Title:ClassName:Exe)" },
+        "priority": {
+          "type": "integer",
+          "description": "Match priority: 0=window title, 1=class, 2=executable"
+        },
+        "method": {
+          "type": "integer",
+          "description": "Capture method: 0=auto, 1=BitBlt, 2=WGC"
+        },
+        "cursor": { "type": "boolean" },
+        "compatibility": { "type": "boolean" },
+        "client_area": { "type": "boolean" },
+        "force_sdr": { "type": "boolean" }
+      }
+    },
+
+    "settings_decklink_input": {
+      "type": "object",
+      "description": "Settings for a Blackmagic DeckLink capture source",
+      "additionalProperties": true,
+      "properties": {
+        "device_name": { "type": "string" },
+        "device_hash": { "type": "string" },
+        "mode_id": { "type": "integer" },
+        "mode_name": { "type": "string" },
+        "video_connection": { "type": "integer" },
+        "audio_connection": { "type": "integer" },
+        "pixel_format": { "type": "integer" },
+        "color_space": { "type": "integer" },
+        "color_range": { "type": "integer" },
+        "channel_format": { "type": "integer" },
+        "buffering": { "type": "boolean" },
+        "swap": { "type": "boolean" }
+      }
+    },
+
+    "settings_phandasm_waveform": {
+      "type": "object",
+      "description": "Settings for the Phandasm Waveform audio visualizer source",
+      "additionalProperties": true,
+      "properties": {
+        "audio_source": { "type": "string" },
+        "width": { "type": "integer" },
+        "height": { "type": "integer" },
+        "display_mode": { "type": "integer" },
+        "render_mode": { "type": "integer" },
+        "pulse_mode": { "type": "boolean" },
+        "log_scale": { "type": "boolean" },
+        "mirror_freq_axis": { "type": "boolean" },
+        "radial_layout": { "type": "boolean" },
+        "invert_direction": { "type": "boolean" },
+        "deadzone": { "type": "number" },
+        "window": { "type": "integer" },
+        "fast_peaks": { "type": "boolean" },
+        "cutoff_low": { "type": "number" },
+        "cutoff_high": { "type": "number" },
+        "floor": { "type": "number" },
+        "ceiling": { "type": "number" },
+        "color_base": { "type": "integer" },
+        "normalize_volume": { "type": "boolean" }
+      }
+    },
+
+    "transition": {
+      "type": "object",
+      "description": "A named scene transition",
+      "required": ["name", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "id": {
+          "type": "string",
+          "description": "Transition type (e.g. cut_transition, fade_transition, wipe_transition, obs_stinger_transition, move_transition)"
+        },
+        "settings": {
+          "type": "object",
+          "description": "Transition-type-specific settings",
+          "additionalProperties": true,
+          "properties": {
+            "luma_image": { "type": "string", "description": "Luma wipe image filename" },
+            "luma_softness": { "type": "number" },
+            "luma_invert": { "type": "boolean" },
+            "path": { "type": "string", "description": "Stinger video path" },
+            "audio_fade_style": { "type": "integer" },
+            "preload": { "type": "boolean" },
+            "track_matte_enabled": { "type": "boolean" },
+            "track_matte_layout": { "type": "integer" }
+          }
+        }
+      }
+    },
+
+    "quick_transition": {
+      "type": "object",
+      "description": "A quick-access transition button entry",
+      "required": ["name", "duration", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string", "description": "Transition name" },
+        "duration": { "type": "integer", "minimum": 0, "description": "Duration in milliseconds" },
+        "fade_to_black": { "type": "boolean" },
+        "hotkeys": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+
+    "module_output_timer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "streamTimerHours": { "type": "integer" },
+        "streamTimerMinutes": { "type": "integer" },
+        "streamTimerSeconds": { "type": "integer" },
+        "recordTimerHours": { "type": "integer" },
+        "recordTimerMinutes": { "type": "integer" },
+        "recordTimerSeconds": { "type": "integer" },
+        "autoStartStreamTimer": { "type": "boolean" },
+        "autoStartRecordTimer": { "type": "boolean" },
+        "pauseRecordTimer": { "type": "boolean" }
+      }
+    },
+
+    "module_auto_scene_switcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "interval": { "type": "integer", "description": "Check interval in milliseconds" },
+        "non_matching_scene": { "type": "string" },
+        "switch_if_not_matching": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "switches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "scene": { "type": "string" },
+              "window_title": { "type": "string" },
+              "fullscreen": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+
+    "module_captions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "lang_id": { "type": "integer" },
+        "provider": { "type": "string" }
+      }
+    },
+
+    "module_source_dock": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "docks": { "type": "array" },
+        "windows": { "type": "array" },
+        "corner_tl": { "type": "integer" },
+        "corner_tr": { "type": "integer" },
+        "corner_br": { "type": "integer" },
+        "corner_bl": { "type": "integer" }
+      }
+    }
+  }
+}

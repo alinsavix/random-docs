@@ -1,0 +1,570 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "streamelements-overlay",
+  "title": "StreamElements Overlay Export Bundle",
+  "description": "Schema for a StreamElements overlay export bundle: the overlay/widget definitions plus the channel, live session counters, and tipping context that the overlay editor/API delivers alongside them. Reverse-engineered from a single export (ong-streamelements-mainoverlay.json); partially unverified.",
+  "type": "object",
+  "required": ["channel", "overlay", "passport", "session", "tipping"],
+  "additionalProperties": false,
+  "properties": {
+    "channel": { "$ref": "#/$defs/channel" },
+    "overlay": { "$ref": "#/$defs/overlay" },
+    "passport": {
+      "type": "string",
+      "description": "JWT bearer token authenticating this channel session. SECRET — do not publish."
+    },
+    "session": { "$ref": "#/$defs/session" },
+    "tipping": { "$ref": "#/$defs/tipping" }
+  },
+
+  "$defs": {
+
+    "objectId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{24}$",
+      "description": "MongoDB-style 24-hex-digit object id used for StreamElements entities"
+    },
+
+    "datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "cssDimension": {
+      "description": "A CSS dimension: either a bare number (pixels) or a CSS length string (e.g. \"700px\", \"auto\")",
+      "oneOf": [
+        { "type": "number" },
+        { "type": "string" }
+      ]
+    },
+
+    "channel": {
+      "type": "object",
+      "description": "The StreamElements channel (account) this overlay belongs to",
+      "required": ["_id", "provider", "providerId", "username"],
+      "additionalProperties": true,
+      "properties": {
+        "_id": { "$ref": "#/$defs/objectId", "description": "StreamElements channel id (referenced by overlay.channel and widget overlay URLs)" },
+        "ab": {
+          "type": "array",
+          "description": "A/B-test / feature-flag assignments for this account",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "description": "Experiment/flag name" },
+              "value": { "type": "string", "description": "Assigned variant (often \"1\")" }
+            }
+          }
+        },
+        "alias": { "type": "string", "description": "Channel alias (lowercased display name)" },
+        "apiToken": {
+          "type": "string",
+          "description": "Overlay access token; appears as the last path segment of overlay browser-source URLs. SECRET — anyone with it can render (and inspect) the overlay."
+        },
+        "avatar": { "type": "string", "format": "uri" },
+        "broadcasterType": {
+          "type": "string",
+          "description": "Twitch broadcaster type",
+          "examples": ["partner", "affiliate", ""]
+        },
+        "createdAt": { "$ref": "#/$defs/datetime" },
+        "displayName": { "type": "string" },
+        "provider": {
+          "type": "string",
+          "description": "Streaming platform this channel is bound to",
+          "examples": ["twitch", "youtube", "facebook"]
+        },
+        "providerId": { "type": "string", "description": "Platform-native channel/user id (numeric string for Twitch)" },
+        "username": { "type": "string" }
+      }
+    },
+
+    "overlay": {
+      "type": "object",
+      "description": "One overlay document: a fixed-size canvas holding positioned widgets. Loaded in OBS as a browser source at https://streamelements.com/overlay/<overlay _id>/<channel apiToken>",
+      "required": ["_id", "channel", "name", "settings", "widgets"],
+      "additionalProperties": true,
+      "properties": {
+        "_id": { "$ref": "#/$defs/objectId", "description": "Overlay id (first path segment of the overlay URL)" },
+        "campaign": { "type": "boolean" },
+        "channel": { "$ref": "#/$defs/objectId", "description": "Owning channel id (matches channel._id)" },
+        "createdAt": { "$ref": "#/$defs/datetime" },
+        "updatedAt": { "$ref": "#/$defs/datetime" },
+        "favorite": { "type": "boolean" },
+        "mobile": { "type": "boolean" },
+        "name": { "type": "string", "description": "Overlay name as shown in the StreamElements dashboard" },
+        "preview": { "type": "string", "format": "uri", "description": "Preview/thumbnail image URL" },
+        "settings": {
+          "type": "object",
+          "description": "Canvas settings",
+          "additionalProperties": true,
+          "properties": {
+            "width": { "type": "integer", "description": "Canvas width in pixels" },
+            "height": { "type": "integer", "description": "Canvas height in pixels" },
+            "name": { "type": "string", "description": "Resolution preset name (e.g. \"1080p\")" }
+          }
+        },
+        "type": {
+          "type": "string",
+          "description": "Overlay type",
+          "examples": ["regular"]
+        },
+        "widgets": {
+          "type": "array",
+          "description": "Widgets on this overlay canvas",
+          "items": { "$ref": "#/$defs/widget" }
+        }
+      }
+    },
+
+    "widget": {
+      "type": "object",
+      "description": "A widget placed on the overlay canvas. The meaning of `variables` depends on `type`.",
+      "required": ["id", "type", "visible", "locked", "css", "variables"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "integer", "description": "Widget id, unique within the overlay" },
+        "group": {
+          "oneOf": [{ "type": "string" }, { "type": "null" }],
+          "description": "If set, this widget is a member of the se-widget-group whose variables.uid matches this value"
+        },
+        "version": { "type": "number", "description": "Widget schema version (e.g. 1, 2.2)" },
+        "type": {
+          "type": "string",
+          "description": "Widget type identifier",
+          "examples": ["se-widget-alert-box", "se-widget-group", "se-widget-subscriber-goal"]
+        },
+        "name": {
+          "oneOf": [{ "type": "string" }, { "type": "null" }],
+          "description": "Display name in the overlay editor layer list"
+        },
+        "visible": { "type": "boolean" },
+        "locked": { "type": "boolean", "description": "Locked against accidental moves in the editor" },
+        "provider": { "type": "string", "examples": ["twitch"] },
+        "css": { "$ref": "#/$defs/widgetCss" },
+        "text": { "$ref": "#/$defs/widgetTextBlock" },
+        "image": { "$ref": "#/$defs/widgetImageBlock" },
+        "video": { "$ref": "#/$defs/widgetVideoBlock" },
+        "audio": { "$ref": "#/$defs/widgetAudioBlock" },
+        "listeners": { "$ref": "#/$defs/listeners" },
+        "listener": {
+          "type": "string",
+          "description": "Single event feed this widget follows (goal-type widgets)",
+          "examples": ["subscriber-goal"]
+        },
+        "variables": {
+          "type": "object",
+          "description": "Widget-type-specific configuration (see conditional branches)"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "se-widget-alert-box" } }, "required": ["type"] },
+          "then": {
+            "required": ["listeners"],
+            "properties": { "variables": { "$ref": "#/$defs/alertBoxVariables" } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "se-widget-group" } }, "required": ["type"] },
+          "then": {
+            "properties": { "variables": { "$ref": "#/$defs/groupVariables" } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "se-widget-subscriber-goal" } }, "required": ["type"] },
+          "then": {
+            "required": ["listener"],
+            "properties": { "variables": { "$ref": "#/$defs/goalVariables" } }
+          }
+        }
+      ]
+    },
+
+    "widgetCss": {
+      "type": "object",
+      "description": "Widget position and size on the overlay canvas",
+      "additionalProperties": true,
+      "properties": {
+        "width": { "$ref": "#/$defs/cssDimension" },
+        "height": { "$ref": "#/$defs/cssDimension" },
+        "top": { "$ref": "#/$defs/cssDimension" },
+        "left": { "$ref": "#/$defs/cssDimension" },
+        "z-index": { "type": "integer", "description": "Stacking order among widgets" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "widgetTextBlock": {
+      "type": "object",
+      "description": "Default text element styling for the widget (largely boilerplate shared across widget types)",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "type": "string", "const": "text" },
+        "value": {
+          "oneOf": [{ "type": "string" }, { "type": "null" }],
+          "description": "Static text value (null in all observed widgets)"
+        },
+        "enableShadow": { "type": "boolean" },
+        "scrolling": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "direction": { "type": "string", "examples": ["left"] },
+            "speed": { "type": "number" }
+          }
+        },
+        "css": {
+          "type": "object",
+          "description": "CSS-ish property bag for the text element (font-family, font-size, color, text-shadow, nested message/scrolling styles, ...)",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "widgetImageBlock": {
+      "type": "object",
+      "description": "Default image element styling for the widget",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "type": "string", "const": "image" },
+        "css": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "widgetVideoBlock": {
+      "type": "object",
+      "description": "Default video element styling for the widget",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "type": "string", "const": "video" },
+        "volume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "css": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "widgetAudioBlock": {
+      "type": "object",
+      "description": "Default audio settings for the widget",
+      "additionalProperties": true,
+      "properties": {
+        "volume": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "listeners": {
+      "type": "object",
+      "description": "Which live event feeds this alert box actually renders. This is the master gate: an event type whose feed is false here never fires from this box, even if its config under variables is enabled — that's how one overlay hosts several specialized boxes (cheers-only, tips-only, ...) without double-firing.",
+      "additionalProperties": { "type": "boolean" },
+      "properties": {
+        "follower-latest": { "type": "boolean" },
+        "subscriber-latest": { "type": "boolean" },
+        "tip-latest": { "type": "boolean" },
+        "cheer-latest": { "type": "boolean" },
+        "host-latest": { "type": "boolean" },
+        "raid-latest": { "type": "boolean" },
+        "purchase-latest": { "type": "boolean" }
+      }
+    },
+
+    "alertBoxVariables": {
+      "type": "object",
+      "description": "Configuration for an alert-box widget: default in/out animation plus one event-config per supported event type",
+      "additionalProperties": true,
+      "properties": {
+        "animation": { "$ref": "#/$defs/animation" },
+        "follower": { "$ref": "#/$defs/alertEventConfig" },
+        "subscriber": { "$ref": "#/$defs/alertEventConfig" },
+        "tip": { "$ref": "#/$defs/alertEventConfig" },
+        "cheer": { "$ref": "#/$defs/alertEventConfig" },
+        "host": { "$ref": "#/$defs/alertEventConfig" },
+        "raid": { "$ref": "#/$defs/alertEventConfig" },
+        "merch": { "$ref": "#/$defs/alertEventConfig" },
+        "purchase": { "$ref": "#/$defs/alertEventConfig" },
+        "charityCampaignDonation": { "$ref": "#/$defs/alertEventConfig" }
+      }
+    },
+
+    "groupVariables": {
+      "type": "object",
+      "description": "Configuration for a widget group (a folder in the editor layer list)",
+      "additionalProperties": true,
+      "properties": {
+        "expanded": { "type": "boolean", "description": "Whether the group is expanded in the editor UI" },
+        "uid": { "type": "string", "description": "Group id; member widgets reference this via their top-level `group` property" }
+      }
+    },
+
+    "goalVariables": {
+      "type": "object",
+      "description": "Configuration for a goal-bar widget (subscriber goal etc.)",
+      "additionalProperties": true,
+      "properties": {
+        "title": { "type": "string", "description": "Label shown on the goal bar" },
+        "goalAmount": { "type": "number" },
+        "goalListener": { "type": "string", "description": "Session counter feeding the bar", "examples": ["subscriber-goal"] },
+        "endDate": { "$ref": "#/$defs/datetime" },
+        "percent": { "type": "boolean", "description": "Show progress as percent rather than count" },
+        "simpleDesign": { "type": "boolean" },
+        "backgroundColor": { "type": "string", "description": "CSS color" },
+        "fillColor": { "type": "string", "description": "CSS color" }
+      }
+    },
+
+    "animation": {
+      "type": "object",
+      "description": "Container in/out animation (animate.css names)",
+      "additionalProperties": true,
+      "properties": {
+        "in": { "type": "string", "examples": ["fadeIn", "zoomIn", "slideInLeft", "none"] },
+        "inDuration": { "type": "number", "description": "Seconds" },
+        "out": { "type": "string", "examples": ["fadeOut", "zoomOut", "slideOutRight", "none"] },
+        "outDuration": { "type": "number", "description": "Seconds" },
+        "text": { "$ref": "#/$defs/textAnimation" }
+      }
+    },
+
+    "textAnimation": {
+      "type": "object",
+      "description": "Separate animation timing for the alert's text layer",
+      "additionalProperties": true,
+      "properties": {
+        "in": { "type": "string" },
+        "out": { "type": "string" },
+        "inDuration": { "type": "number" },
+        "outDuration": { "type": "number" },
+        "delay": { "type": "number", "description": "Seconds before the text animates in" },
+        "offset": { "type": "number", "description": "Seconds before the end at which the text animates out" }
+      }
+    },
+
+    "alertEventConfig": {
+      "type": "object",
+      "description": "Alert configuration for one event type. The same shape is reused as `settings` inside each variation, where its values override this base config for matching events.",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "duration": { "type": "number", "description": "How long the alert stays on screen, in seconds" },
+        "layout": {
+          "type": "string",
+          "description": "Text/graphic arrangement: column = text below graphic, row = side by side, behind = text over the graphic",
+          "enum": ["column", "row", "behind"]
+        },
+        "minAmount": {
+          "type": "number",
+          "description": "Minimum amount (bits, currency, viewers, ...) for this event type to fire at all"
+        },
+        "showMessage": { "type": "boolean", "description": "Whether to display the user's attached message" },
+        "enableRandomPick": {
+          "type": "boolean",
+          "description": "When multiple variations match the same event, pick one at random (weighted by each variation's `chance`) instead of taking the first match"
+        },
+        "animation": { "$ref": "#/$defs/animation" },
+        "audio": { "$ref": "#/$defs/audioRef" },
+        "graphics": { "$ref": "#/$defs/graphics" },
+        "text": { "$ref": "#/$defs/alertText" },
+        "tts": { "$ref": "#/$defs/tts" },
+        "variations": {
+          "type": "array",
+          "description": "Amount/condition-matched overrides; this is where per-amount custom alerts live",
+          "items": { "$ref": "#/$defs/variation" }
+        },
+        "enableCustomCss": { "type": "boolean" },
+        "css": { "type": "string", "description": "Custom CSS (used when enableCustomCss is true)" },
+        "html": { "type": "string", "description": "Custom HTML template ({name}/{amount}/{{image}} style placeholders)" },
+        "js": { "type": "string", "description": "Custom JavaScript run for the alert" },
+        "fields": {
+          "type": "string",
+          "description": "JSON string defining custom-code editor fields (mostly SE boilerplate in this export)"
+        },
+        "fieldData": {
+          "type": "object",
+          "description": "Values for the custom-code fields declared in `fields`",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "graphics": {
+      "type": "object",
+      "description": "The image/video shown by the alert",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "type": "string", "enum": ["image", "video"] },
+        "src": {
+          "oneOf": [{ "type": "string", "format": "uri" }, { "type": "null" }],
+          "description": "Media URL (usually cdn.streamelements.com uploads); null = no graphic"
+        },
+        "volume": { "type": "number", "minimum": 0, "maximum": 1, "description": "Volume for video graphics" }
+      }
+    },
+
+    "audioRef": {
+      "type": "object",
+      "description": "The sound played by the alert",
+      "additionalProperties": true,
+      "properties": {
+        "src": {
+          "oneOf": [{ "type": "string", "format": "uri" }, { "type": "null" }],
+          "description": "Audio URL; null = no sound"
+        },
+        "volume": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "alertText": {
+      "type": "object",
+      "description": "The alert's headline text",
+      "additionalProperties": true,
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Template with placeholders like {name}, {amount}, {sender} (e.g. \"{name} cheered x{amount}\")"
+        },
+        "animation": { "type": "string", "description": "Looping emphasis animation for the text", "examples": ["pulse", "bounce", "none"] },
+        "enableShadow": { "type": "boolean" },
+        "enableCustomFont": { "type": "boolean" },
+        "enableCustomFontSecondary": { "type": "boolean" },
+        "numberFormat": { "type": "string", "examples": ["en-EN"] },
+        "css": {
+          "type": "object",
+          "description": "CSS-ish property bag: font-*, color, text-shadow, -webkit-text-stroke-*, margins, plus nested `highlights` (color of {name}/{amount} spans) and `message` (styling of the user's message line)",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "tts": {
+      "type": "object",
+      "description": "Text-to-speech for the user's message",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "voice": { "type": "string", "examples": ["Brian"] },
+        "volume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minAmount": { "type": "number", "description": "Minimum amount before TTS reads the message" }
+      }
+    },
+
+    "variation": {
+      "type": "object",
+      "description": "A conditional override of the event's base alert. Fires when the event matches `type`/`condition`/`requirement`; its `settings` then replace the base config. Naming convention in this export: variations are named \"<amount> <alert name>\", with \"[disabled for BPM]\" etc. marking amounts that were migrated to the local OBS alert system.",
+      "required": ["name", "condition", "settings"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string", "description": "Editor display name" },
+        "enabled": { "type": "boolean" },
+        "type": {
+          "type": "string",
+          "description": "What the requirement is measured against: amount = event amount (bits/currency/months/viewers), gift = single gifted sub, communityGift = community gift-bomb count",
+          "enum": ["amount", "gift", "communityGift"]
+        },
+        "condition": {
+          "type": "string",
+          "description": "How `requirement` is compared: EXACT amount match, or at-least threshold",
+          "enum": ["EXACT", "ATLEAST"]
+        },
+        "requirement": {
+          "type": "number",
+          "description": "The amount to compare against (bits for cheers, currency units for tips, months/count for subs, viewers for raids)"
+        },
+        "chance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Random-pick weight (percent) when multiple variations match and enableRandomPick is on"
+        },
+        "layout": { "type": "string", "enum": ["column", "row", "behind"] },
+        "settings": {
+          "$ref": "#/$defs/alertEventConfig",
+          "description": "Full alert config used when this variation fires (nested `variations` arrays observed empty)"
+        }
+      }
+    },
+
+    "session": {
+      "type": "object",
+      "description": "Live session/lifetime counters for the channel, keyed as <eventType>-<scope> (e.g. cheer-latest, tip-session, subscriber-alltime-gifter, follower-goal). These are the data feeds widgets subscribe to via listener(s). Event types observed: follower, subscriber, cheer, tip, host, raid, merch, purchase, superchat, cheerPurchase, charityCampaignDonation, hypetrain, channel-points, community-gift.",
+      "patternProperties": {
+        "(-recent|-top-contributors)$": {
+          "type": "array",
+          "description": "Rolling list of recent events, newest first",
+          "items": { "$ref": "#/$defs/sessionRecentEntry" }
+        }
+      },
+      "additionalProperties": { "$ref": "#/$defs/sessionStat" }
+    },
+
+    "sessionStat": {
+      "type": "object",
+      "description": "One session counter. Which fields are present depends on the key: totals carry amount or count; -latest entries add name/message; special feeds add their own fields (tier, sender, redemption, hype-train levels, ...).",
+      "additionalProperties": true,
+      "properties": {
+        "amount": { "type": "number", "description": "Amount (bits, currency, viewers, subs, ...)" },
+        "count": { "type": "integer", "description": "Event count (follower/subscriber tallies)" },
+        "name": { "type": "string", "description": "User associated with the entry" },
+        "message": { "type": "string", "description": "Attached user message" },
+        "tier": { "type": "string", "description": "Sub tier", "examples": ["1000", "2000", "3000", "prime"] },
+        "sender": { "type": "string", "description": "Gifter (subscriber-gifted-latest)" },
+        "redemption": { "type": "string", "description": "Reward name (channel-points-latest)" },
+        "percent": { "type": "number", "description": "Progress percent (hypetrain-level-progress)" },
+        "active": { "type": "integer", "description": "Hype train: currently active flag" },
+        "level": { "type": "integer", "description": "Hype train: current level" },
+        "levelChanged": { "type": "integer", "description": "Hype train: level-change flag" },
+        "type": { "type": "string", "description": "Hype train: train type" },
+        "items": { "type": "array", "description": "Purchased items (merch/purchase-latest)" },
+        "avatar": { "type": "string", "description": "Purchaser avatar URL (purchase-latest)" }
+      }
+    },
+
+    "sessionRecentEntry": {
+      "type": "object",
+      "description": "One entry in a *-recent rolling list",
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string" },
+        "createdAt": { "$ref": "#/$defs/datetime" },
+        "amount": { "type": "number", "description": "Absent for follower entries" },
+        "tier": { "type": "string", "description": "Present for subscriber entries" }
+      }
+    },
+
+    "tipping": {
+      "type": "object",
+      "description": "Channel tipping configuration relevant to overlay rendering",
+      "additionalProperties": true,
+      "properties": {
+        "currency": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "code": { "type": "string", "description": "ISO 4217 code", "examples": ["USD"] },
+            "name": { "type": "string" },
+            "symbol": { "type": "string" }
+          }
+        },
+        "profanity": {
+          "type": "object",
+          "description": "Profanity filtering for displayed messages",
+          "additionalProperties": true,
+          "properties": {
+            "default": { "type": "boolean", "description": "Use the built-in word list" },
+            "filter": { "type": "boolean", "description": "Master enable" },
+            "mode": { "type": "integer", "description": "Filter mode (enum values unverified)" },
+            "custom": { "type": "array", "items": { "type": "string" }, "description": "Additional blocked words" },
+            "replace": { "type": "array", "items": { "type": "string" }, "description": "Replacement words" }
+          }
+        },
+        "ttsFilter": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "enabled": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

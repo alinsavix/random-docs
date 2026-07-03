@@ -11,6 +11,12 @@
       "type": "string",
       "description": "Scene collection name"
     },
+    "DesktopAudioDevice1": { "$ref": "#/$defs/source", "description": "Global desktop audio device (Settings → Audio), stored at the collection root rather than in sources[]" },
+    "DesktopAudioDevice2": { "$ref": "#/$defs/source", "description": "Second global desktop audio device" },
+    "AuxAudioDevice1": { "$ref": "#/$defs/source", "description": "Global mic/aux audio device 1 (Settings → Audio), stored at the collection root" },
+    "AuxAudioDevice2": { "$ref": "#/$defs/source", "description": "Global mic/aux audio device 2" },
+    "AuxAudioDevice3": { "$ref": "#/$defs/source", "description": "Global mic/aux audio device 3" },
+    "AuxAudioDevice4": { "$ref": "#/$defs/source", "description": "Global mic/aux audio device 4" },
     "current_scene": {
       "type": "string",
       "description": "Name of the currently active preview scene"
@@ -118,7 +124,7 @@
         "copyTransformHotkey": { "type": "array" },
         "pasteTransformHotkey": { "type": "array" },
         "scripts-tool": { "type": "array" },
-        "downstream_keyers_channel": { "type": "object" },
+        "downstream_keyers_channel": { "type": "integer", "description": "OBS output channel number the Downstream Keyer plugin renders on (7 observed)" },
         "downstream_keyers": { "type": "array" },
         "advanced-scene-switcher": { "type": "object" }
       }
@@ -485,10 +491,11 @@
         "clear_on_media_end": { "type": "boolean" },
         "hw_decode": { "type": "boolean", "description": "Whether hardware decoding is enabled" },
         "speed_percent": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 200,
-          "description": "Playback speed as a percentage (100 = normal)"
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string" }
+          ],
+          "description": "Playback speed as a percentage (100 = normal; UI range 1-200, but external writers may store values outside it). Normally an integer; string values occur when tools write via obs-websocket (obs-data preserves the JSON type as given) — a literal unexpanded '%variable%' string here indicates a bug in the writing tool"
         },
         "input": { "type": "string", "description": "URL or stream input (non-local)" },
         "input_format": { "type": "string" },
@@ -689,15 +696,15 @@
         "audio_source": { "type": "string" },
         "width": { "type": "integer" },
         "height": { "type": "integer" },
-        "display_mode": { "type": "integer" },
-        "render_mode": { "type": "integer" },
-        "pulse_mode": { "type": "boolean" },
+        "display_mode": { "type": "string", "examples": ["curve", "bars"] },
+        "render_mode": { "type": "string", "examples": ["line", "solid"] },
+        "pulse_mode": { "type": "string", "examples": ["peak_magnitude"] },
         "log_scale": { "type": "boolean" },
         "mirror_freq_axis": { "type": "boolean" },
         "radial_layout": { "type": "boolean" },
         "invert_direction": { "type": "boolean" },
         "deadzone": { "type": "number" },
-        "window": { "type": "integer" },
+        "window": { "type": "string", "description": "FFT window function", "examples": ["blackman_harris", "hann"] },
         "fast_peaks": { "type": "boolean" },
         "cutoff_low": { "type": "number" },
         "cutoff_high": { "type": "number" },
@@ -809,10 +816,10 @@
       "properties": {
         "docks": { "type": "array" },
         "windows": { "type": "array" },
-        "corner_tl": { "type": "integer" },
-        "corner_tr": { "type": "integer" },
-        "corner_br": { "type": "integer" },
-        "corner_bl": { "type": "integer" }
+        "corner_tl": { "type": "boolean" },
+        "corner_tr": { "type": "boolean" },
+        "corner_br": { "type": "boolean" },
+        "corner_bl": { "type": "boolean" }
       }
     }
   }

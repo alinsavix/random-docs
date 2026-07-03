@@ -47,6 +47,14 @@
       "format": "uuid"
     },
 
+    "Tiers": {
+      "description": "Sub-tier selection; observed as an integer bitmask (16 in all observed data), possibly an array in other exports",
+      "oneOf": [
+        { "type": "integer" },
+        { "type": "array" }
+      ]
+    },
+
     "Queue": {
       "type": "object",
       "required": ["id", "name", "blocking"],
@@ -93,19 +101,23 @@
       "allOf": [
         {
           "if": { "properties": { "type": { "const": 102 } } },
-          "then": { "properties": { "min": {}, "max": {} }, "description": "Twitch: subscription (range)" }
+          "then": { "properties": { "min": {}, "max": {} }, "description": "Twitch: cheer — bits amount range (populates %bits%)" }
         },
         {
           "if": { "properties": { "type": { "const": 103 } } },
-          "then": { "properties": { "tiers": { "type": "array" } }, "description": "Twitch: sub by tier" }
+          "then": { "properties": { "tiers": { "$ref": "#/$defs/Tiers" } }, "description": "Twitch: sub by tier" }
         },
         {
           "if": { "properties": { "type": { "enum": [104, 105, 106] } } },
-          "then": { "properties": { "tiers": { "type": "array" }, "min": {}, "max": {}, "subType": {} }, "description": "Twitch: sub variants" }
+          "then": { "properties": { "tiers": { "$ref": "#/$defs/Tiers" }, "min": {}, "max": {}, "subType": {} }, "description": "Twitch: sub variants" }
         },
         {
           "if": { "properties": { "type": { "const": 105 } } },
           "then": { "properties": { "monthsGifted": {} }, "description": "Twitch: gift sub" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 106 } } },
+          "then": { "description": "Twitch: gift bomb — community gifts; min/max = gift count (populates %gifts%)" }
         },
         {
           "if": { "properties": { "type": { "const": 112 } } },
@@ -136,19 +148,31 @@
           "then": { "properties": { "min": {}, "max": {} } }
         },
         {
+          "if": { "properties": { "type": { "const": 701 } } },
+          "then": { "properties": { "timerId": { "$ref": "#/$defs/UUID" } }, "description": "Timed action tick (fires the named timer from settings.json timedActions)" }
+        },
+        {
           "if": { "properties": { "type": { "const": 14003 } } },
           "then": { "properties": { "eventName": { "type": "string" }, "obsId": { "$ref": "#/$defs/UUID" } }, "description": "OBS event" }
         },
         {
+          "if": { "properties": { "type": { "const": 14004 } } },
+          "then": { "properties": { "sceneName": { "type": "string" }, "obsId": { "oneOf": [{ "$ref": "#/$defs/UUID" }, { "type": "null" }], "description": "null = default OBS connection" } }, "description": "OBS: scene changed (provides %obs.sceneName%)" }
+        },
+        {
+          "if": { "properties": { "type": { "const": 14005 } } },
+          "then": { "properties": { "obsId": { "oneOf": [{ "$ref": "#/$defs/UUID" }, { "type": "null" }], "description": "null = default OBS connection" } }, "description": "OBS: connected? (observed used for run-on-OBS-connect startup work)" }
+        },
+        {
           "if": { "properties": { "type": { "const": 14009 } } },
-          "then": { "properties": { "vendorName": { "type": "string" }, "eventName": { "type": "string" }, "obsId": { "$ref": "#/$defs/UUID" } }, "description": "OBS vendor event" }
+          "then": { "properties": { "vendorName": { "type": "string" }, "eventName": { "type": "string" }, "obsId": { "oneOf": [{ "$ref": "#/$defs/UUID" }, { "type": "null" }], "description": "null = default OBS connection" } }, "description": "OBS vendor event" }
         },
         {
           "if": { "properties": { "type": { "const": 18002 } } },
           "then": { "properties": { "name": { "type": "string" }, "eventName": { "type": "string" } }, "description": "WebSocket event" }
         }
       ],
-      "$comment": "Known type values: 101=Twitch chat, 102-106=sub variants, 107=raid, 108, 111, 112=channel point redeem, 139, 186=timer, 194=channel point type, 201=bits/cheer, 401=command, 479, 702=startup+vars, 706=startup, 709/711=variable watcher, 1201, 4006/4007/4018=YouTube, 7001, 10001, 14003=OBS event, 14009=OBS vendor event, 18002=WebSocket, 24006, 28003"
+      "$comment": "Known type values: 101=Twitch chat, 102=Twitch cheer (bits range; populates %bits%), 103-105=sub variants, 106=gift bomb (min/max = gift count; populates %gifts%), 107=raid, 108, 111, 112=channel point redeem, 139, 186=timer, 194=channel point type, 201=donation/tip (currency; fractional min/max observed, so not bits), 401=command, 479, 701=timed action tick, 702=startup+vars, 706=startup, 709/711=variable watcher, 1201=donation/tip from a second platform, 4006/4007/4018=YouTube, 7001, 10001, 14003=OBS event, 14004=OBS scene changed, 14005=OBS connected?, 14009=OBS vendor event, 18002=WebSocket, 24006, 28003"
     },
 
     "SubActionBase": {
@@ -187,11 +211,19 @@
         },
         {
           "description": "type=30: OBS Set Source Visibility",
-          "properties": { "type": { "const": 30 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "state": { "type": "integer" }, "connectionId": { "$ref": "#/$defs/UUID" } }
+          "properties": { "type": { "const": 30 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "state": { "type": "integer", "description": "0 = visible, 1 = hidden (only these observed)" }, "connectionId": { "$ref": "#/$defs/UUID" } }
+        },
+        {
+          "description": "type=35: OBS Set Source Filter State",
+          "properties": { "type": { "const": 35 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "filterName": { "type": "string" }, "state": { "type": "integer", "description": "0 = enabled, 1 = disabled (only these observed)" }, "connectionId": { "$ref": "#/$defs/UUID" } }
         },
         {
           "description": "type=38: OBS Set Browser Source URL",
           "properties": { "type": { "const": 38 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "url": { "type": "string" }, "connectionId": { "$ref": "#/$defs/UUID" } }
+        },
+        {
+          "description": "type=39: OBS Set GDI Text",
+          "properties": { "type": { "const": 39 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "text": { "type": "string" }, "connectionId": { "$ref": "#/$defs/UUID" } }
         },
         {
           "description": "type=46: OBS Raw WebSocket Request",
@@ -226,16 +258,32 @@
           "properties": { "type": { "const": 127 }, "input": { "type": "string" }, "autoType": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
         },
         {
+          "description": "type=128: If / Condition (variant of 120 with case option)",
+          "properties": { "type": { "const": 128 }, "input": { "type": "string" }, "operation": { "type": "integer" }, "value": {}, "autoType": { "type": "boolean" }, "ignoreCase": { "type": "boolean" }, "subActions": { "type": "array", "items": { "$ref": "#/$defs/SubAction" } } }
+        },
+        {
           "description": "type=324: OBS Source Action",
           "properties": { "type": { "const": 324 }, "sceneName": { "type": "string" }, "sourceName": { "type": "string" }, "connectionId": { "$ref": "#/$defs/UUID" } }
+        },
+        {
+          "description": "type=326: OBS random scene item? (exact semantics unverified)",
+          "properties": { "type": { "const": 326 }, "sceneName": { "type": "string" }, "connectionId": { "$ref": "#/$defs/UUID" } }
         },
         {
           "description": "type=560: Twitch Send Chat Message",
           "properties": { "type": { "const": 560 }, "text": { "type": "string" }, "useBot": { "type": "boolean" }, "fallback": { "type": "boolean" }, "replyId": { "type": "string" } }
         },
         {
+          "description": "type=1001: Action Queue pause/resume/clear",
+          "properties": { "type": { "const": 1001 }, "actionQueueId": { "$ref": "#/$defs/UUID" }, "state": { "type": "integer" }, "clear": { "type": "boolean" } }
+        },
+        {
           "description": "type=1002: Sleep / Delay",
-          "properties": { "type": { "const": 1002 }, "value": { "type": "string" }, "maxValue": { "oneOf": [{ "type": "integer" }, { "type": "null" }] }, "random": { "type": "boolean" } }
+          "properties": { "type": { "const": 1002 }, "value": { "type": "string", "description": "Delay in ms (stringified number)" }, "maxValue": { "oneOf": [{ "type": "string" }, { "type": "integer" }, { "type": "null" }], "description": "Upper bound (stringified ms) when random is true, else null" }, "random": { "type": "boolean" } }
+        },
+        {
+          "description": "type=1008: Color picker to variable (exposes sub-fields like %<var>.html%)",
+          "properties": { "type": { "const": 1008 }, "red": { "type": "integer" }, "green": { "type": "integer" }, "blue": { "type": "integer" }, "alpha": { "type": "integer" }, "random": { "type": "boolean" }, "variableName": { "type": "string" } }
         },
         {
           "description": "type=1009: Comment / Note",
@@ -246,8 +294,12 @@
           "properties": { "type": { "const": 1020 }, "logLevel": { "type": "integer" }, "message": { "type": "string" } }
         },
         {
+          "description": "type=1021: Read file contents into variable (also sets %fileFound%)",
+          "properties": { "type": { "const": 1021 }, "file": { "type": "string" }, "count": {}, "variableName": { "type": "string" }, "parseVariables": { "type": "boolean" }, "autoType": { "type": "boolean" } }
+        },
+        {
           "description": "type=1024: Toast Notification",
-          "properties": { "type": { "const": 1024 }, "toastId": { "type": "string" }, "title": { "type": "string" }, "text": { "type": "string" }, "attribution": { "type": "string" }, "iconPath": { "type": "string" } }
+          "properties": { "type": { "const": 1024 }, "toastId": { "type": "string" }, "title": { "type": "string" }, "text": { "type": "string" }, "attribution": { "oneOf": [{ "type": "string" }, { "type": "null" }] }, "iconPath": { "type": "string" } }
         },
         {
           "description": "type=1031: Signal Send",
@@ -287,7 +339,7 @@
         },
         {
           "description": "type=99999: Inline C# Code",
-          "properties": { "type": { "const": 99999 }, "name": { "type": "string" }, "description": { "oneOf": [{ "type": "string" }, { "type": "null" }] }, "references": { "type": "array", "items": { "type": "string" } }, "byteCode": { "type": "string", "contentEncoding": "base64", "description": "Base64-encoded C# source" }, "precompile": { "type": "boolean" }, "delayStart": { "type": "boolean" }, "saveResultToVariable": { "type": "boolean" }, "saveToVariable": { "oneOf": [{ "type": "string" }, { "type": "null" }] } }
+          "properties": { "type": { "const": 99999 }, "name": { "oneOf": [{ "type": "string" }, { "type": "null" }] }, "description": { "oneOf": [{ "type": "string" }, { "type": "null" }] }, "references": { "type": "array", "items": { "type": "string" } }, "byteCode": { "type": "string", "contentEncoding": "base64", "description": "Base64-encoded C# source" }, "precompile": { "type": "boolean" }, "delayStart": { "type": "boolean" }, "saveResultToVariable": { "type": "boolean" }, "saveToVariable": { "oneOf": [{ "type": "string" }, { "type": "null" }] } }
         }
       ]
     }
